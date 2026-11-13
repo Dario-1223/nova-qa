@@ -19,4 +19,8 @@ describe("Coordinación", () => {
     // TODO: llenar el formulario con this.datos.datosInvalidos
     // TODO: verificar que se rechaza (mensaje de error o no se guarda)
   });
+
+  it("CP-08 otra función de Coordinación", function () {
+    // TODO
+  });
 });
