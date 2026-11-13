@@ -6,7 +6,10 @@ describe("Coordinación", () => {
   });
 
   it("CP-05 Coordinación consulta [función principal]", function () {
-    // TODO: entrar a la opción del menú
-    // TODO: verificar que se muestra el listado o los datos esperados
+    // ...
+  });
+
+  it("CP-06 Coordinación realiza [acción del rol]", function () {
+    // ...
   });
 });
