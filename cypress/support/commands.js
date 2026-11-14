@@ -35,37 +35,40 @@ Cypress.Commands.add('login', (rol) => {
     throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
   }
 
-  const usuario = Cypress.env(r.user);
-  const clave = Cypress.env(r.pass);
+  // Cypress 16: las credenciales se leen con cy.env(), no con Cypress.env()
+  cy.env([r.user, r.pass]).then((env) => {
+    const usuario = env[r.user];
+    const clave = env[r.pass];
 
-  if (!usuario || !clave) {
-    throw new Error(
-      `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
-    );
-  }
+    if (!usuario || !clave) {
+      throw new Error(
+        `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
+      );
+    }
 
-  cy.session(
-    ['login', rol],
-    () => {
-      cy.visit(r.rutaLogin);
+    cy.session(
+      ['login', rol],
+      () => {
+        cy.visit(r.rutaLogin);
 
-      cy.get(SEL.usuario).clear().type(usuario, { log: false });
-      cy.get(SEL.clave).clear().type(clave, { log: false });
+        cy.get(SEL.usuario).clear().type(usuario, { log: false });
+        cy.get(SEL.clave).clear().type(clave, { log: false });
 
-      cy.get(SEL.ingresar).click();
+        cy.get(SEL.ingresar).click();
 
-      cy.location('pathname', { timeout: 15000 })
-        .should('not.include', r.rutaLoginFragmento);
-    },
-    {
-      validate() {
-        cy.visit(r.rutaDestino);
-        cy.location('pathname')
+        cy.location('pathname', { timeout: 15000 })
           .should('not.include', r.rutaLoginFragmento);
       },
-      cacheAcrossSpecs: true,
-    }
-  );
+      {
+        validate() {
+          cy.visit(r.rutaDestino);
+          cy.location('pathname')
+            .should('not.include', r.rutaLoginFragmento);
+        },
+        cacheAcrossSpecs: true,
+      }
+    );
+  });
 });
 
 // Login manual para pruebas negativas (usa el login general de Nova)
