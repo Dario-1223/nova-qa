@@ -21,9 +21,9 @@ const ROLES = {
   VICE: {
     user: 'VICE_USER',
     pass: 'VICE_PASS',
-    rutaLogin: '/login', // confirmar con quien tenga el rol Vicerrectoría
-    rutaDestino: '/',
-    rutaLoginFragmento: '/login',
+    rutaLogin: '/convocatorias-app/inicio-sesion',
+    rutaDestino: '/convocatorias-app/vicerrectoria/avales',
+    rutaLoginFragmento: 'inicio-sesion',
   },
 };
 
