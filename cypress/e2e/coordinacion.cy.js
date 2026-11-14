@@ -28,17 +28,25 @@ describe("Coordinación", () => {
     cy.contains("Gestión de Avales").should("be.visible");
   });
 
-  it("CP-07 búsqueda de Coordinación con texto inexistente", function () {
-    cy.get('input[placeholder^="Nombre, identificación"]')
+      it("CP-07 búsqueda de aspirante inexistente en Coordinación", function () {
+    cy.contains("button", "Ver aspirantes").click();
+    cy.get('input[placeholder^="Buscar aspirante"]')
       .clear()
       .type(this.datos.datosInvalidos.busqueda);
-    cy.contains("button", "Ver aspirantes").should("not.exist");
-    cy.contains("Gestión de Avales").should("be.visible");
+    cy.contains("0 aspirante(s)").should("be.visible");
   });
 
   it("CP-08 Coordinación no accede a la ruta de otro rol", function () {
     cy.visit("/convocatorias-app/talento-humano", { failOnStatusCode: false });
     cy.location("pathname").should("include", "/acceso-denegado");
     cy.location("pathname").should("not.include", "/talento-humano");
+  });
+  
+    it("CP-09 búsqueda de aspirante con coincidencias en Coordinación", function () {
+    cy.contains("button", "Ver aspirantes").click();
+    cy.get('input[placeholder^="Buscar aspirante"]')
+      .clear()
+      .type(this.datos.datosValidos.busquedaValida);
+    cy.contains("0 aspirante(s)").should("not.exist");
   });
 });

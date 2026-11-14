@@ -1,6 +1,7 @@
 {
   "datosValidos": {
-    "estado": "Aceptada"
+    "estado": "Aceptada",
+    "busquedaValida": "jo"
   },
   "datosInvalidos": {
     "busqueda": "zzzxxx-no-existe-999"
