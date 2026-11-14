@@ -1,7 +1,10 @@
 // cypress/support/commands.js
-// Uso en las pruebas:  cy.login('COORD')  o  cy.login('VICE')
+// Uso en las pruebas:
+//   cy.login('COORD')        -> Coordinación (correo y contraseña)
+//   cy.login('VICE')         -> Vicerrectoría con correo y contraseña (si el docente da una cuenta)
+//   cy.loginViceToken()      -> Vicerrectoría con sesión de Google reutilizada (cookie token)
 // Credenciales en cypress.env.json (excluido de Git):
-//   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS
+//   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS, VICE_TOKEN
 
 const SEL = {
   usuario: 'input[type="email"]',
@@ -9,7 +12,6 @@ const SEL = {
   ingresar: 'button[type="submit"]',
 };
 
-// Cada rol tiene su propia pantalla de login y su ruta de destino
 const ROLES = {
   COORD: {
     user: 'COORD_USER',
@@ -27,7 +29,6 @@ const ROLES = {
   },
 };
 
-// Login reutilizable por rol
 Cypress.Commands.add('login', (rol) => {
   const r = ROLES[rol];
 
@@ -35,7 +36,6 @@ Cypress.Commands.add('login', (rol) => {
     throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
   }
 
-  // Cypress 16: las credenciales se leen con cy.env(), no con Cypress.env()
   cy.env([r.user, r.pass]).then((env) => {
     const usuario = env[r.user];
     const clave = env[r.pass];
@@ -54,8 +54,6 @@ Cypress.Commands.add('login', (rol) => {
         cy.get(SEL.usuario).clear().type(usuario, { log: false });
         cy.get(SEL.clave).clear().type(clave, { log: false });
 
-        // Se pulsa por texto exacto para no confundirlo con
-        // el botón "Iniciar sesión con Google"
         cy.contains('button', 'Iniciar Sesión').click();
 
         cy.location('pathname', { timeout: 15000 })
@@ -73,7 +71,30 @@ Cypress.Commands.add('login', (rol) => {
   });
 });
 
-// Login manual para pruebas negativas (usa el login general de Nova)
+// Vicerrectoría: reutiliza la sesión de Google guardada en la cookie "token".
+// Requiere "VICE_TOKEN" en cypress.env.json. El token caduca: si falla, copie uno nuevo.
+Cypress.Commands.add('loginViceToken', () => {
+  cy.env(['VICE_TOKEN']).then(({ VICE_TOKEN }) => {
+    if (!VICE_TOKEN) {
+      throw new Error('Falta VICE_TOKEN en cypress.env.json');
+    }
+
+    cy.session(
+      ['login-token', 'VICE'],
+      () => {
+        cy.visit('/convocatorias-app/inicio-sesion');
+        cy.setCookie('token', VICE_TOKEN, { path: '/' });
+      },
+      {
+        validate() {
+          cy.visit('/convocatorias-app/vicerrectoria/avales');
+          cy.location('pathname').should('not.include', 'inicio-sesion');
+        },
+      }
+    );
+  });
+});
+
 const RUTA_LOGIN = '/login';
 Cypress.Commands.add('loginManual', (usuario, clave) => {
   cy.visit(RUTA_LOGIN);

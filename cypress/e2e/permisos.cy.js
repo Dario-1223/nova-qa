@@ -8,8 +8,8 @@ describe("Permisos entre roles", () => {
     cy.location("pathname").should("not.include", "/vicerrectoria");
   });
 
-  it.skip("CP-13 Vicerrectoría no accede a la función de Coordinación", function () {
-    cy.login("VICE");
+  it("CP-13 Vicerrectoría no accede a la función de Coordinación", function () {
+    cy.loginViceToken();
     cy.visit("/convocatorias-app/coordinador/aspirantes", {
       failOnStatusCode: false,
     });
