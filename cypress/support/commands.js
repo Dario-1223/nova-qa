@@ -1,35 +1,33 @@
 // cypress/support/commands.js
-// Comando personalizado para iniciar sesión según el rol.
 // Uso en las pruebas:  cy.login('COORD')  o  cy.login('VICE')
-//
-// Las credenciales se leen de cypress.env.json (excluido de Git):
+// Credenciales en cypress.env.json (excluido de Git):
 //   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS
 
-// ---------------------------------------------------------------
-// SELECTORES DE LA PANTALLA DE LOGIN (tomados de /login de NOVA)
-//   <input type="email" id="email" name="email">
-//   <input type="password" id="password" name="password">
-//   <button type="submit">Iniciar Sesión</button>
-// ---------------------------------------------------------------
+// Selectores genéricos (confirmar con el HTML real de cada pantalla de login)
 const SEL = {
-  usuario: '#email',
-  clave: '#password',
-  ingresar: 'form button[type="submit"]',
+  usuario: 'input[type="email"]',
+  clave: 'input[type="password"]',
+  ingresar: 'button[type="submit"]',
 };
 
-// Ruta de la página de login (relativa a baseUrl)
-const RUTA_LOGIN = '/login';
-
+// Cada rol tiene su propia pantalla de login y su ruta de destino
 const ROLES = {
-  COORD: { user: 'COORD_USER', pass: 'COORD_PASS' },
-  VICE: { user: 'VICE_USER', pass: 'VICE_PASS' },
+  COORD: {
+    user: 'COORD_USER',
+    pass: 'COORD_PASS',
+    rutaLogin: '/convocatorias-app/inicio-sesion',
+    rutaDestino: '/convocatorias-app/coordinador',
+    rutaLoginFragmento: 'inicio-sesion',
+  },
+  VICE: {
+    user: 'VICE_USER',
+    pass: 'VICE_PASS',
+    rutaLogin: '/login', // confirmar con quien tenga el rol Vicerrectoría
+    rutaDestino: '/',
+    rutaLoginFragmento: '/login',
+  },
 };
 
-/**
- * Inicia sesión con el rol indicado y guarda la sesión con cy.session,
- * para no repetir el login en cada prueba (más rápido y menos peticiones al servidor).
- * @param {'COORD'|'VICE'} rol
- */
 Cypress.Commands.add('login', (rol) => {
   const r = ROLES[rol];
   if (!r) {
@@ -48,37 +46,30 @@ Cypress.Commands.add('login', (rol) => {
   cy.session(
     ['login', rol],
     () => {
-      cy.visit(RUTA_LOGIN);
+      cy.visit(r.rutaLogin);
       cy.get(SEL.usuario).clear().type(usuario, { log: false });
       cy.get(SEL.clave).clear().type(clave, { log: false });
       cy.get(SEL.ingresar).click();
-      // Login exitoso = la app sale de /login.
-      // Cuando tengan credenciales, pueden agregar además un elemento
-      // que solo se vea ya dentro (menú, nombre del usuario, etc.).
-      cy.location('pathname', { timeout: 15000 }).should('not.include', '/login');
+      cy.location('pathname', { timeout: 15000 }).should(
+        'not.include',
+        r.rutaLoginFragmento
+      );
     },
     {
-      // Si la sesión guardada expiró, se vuelve a iniciar sesión.
       validate() {
-        cy.visit('/');
-        cy.location('pathname').should('not.include', '/login');
+        cy.visit(r.rutaDestino);
+        cy.location('pathname').should('not.include', r.rutaLoginFragmento);
       },
       cacheAcrossSpecs: true,
     }
   );
 });
 
-/**
- * Intenta iniciar sesión con datos arbitrarios SIN guardar sesión.
- * Pensado para los casos negativos (CP-02, CP-03).
- * Pasar '' para dejar un campo vacío.
- */
-// Nota: el campo de correo es type="email", así que el navegador
-// valida el formato y puede bloquear el envío sin llamar al servidor.
-// En ese caso la prueba debe verificar que se sigue en /login.
+// loginManual: se deja igual que el original (usa /login de Nova)
+const RUTA_LOGIN = '/login';
 Cypress.Commands.add('loginManual', (usuario, clave) => {
   cy.visit(RUTA_LOGIN);
-  if (usuario) cy.get(SEL.usuario).clear().type(usuario, { log: false });
-  if (clave) cy.get(SEL.clave).clear().type(clave, { log: false });
-  cy.get(SEL.ingresar).click();
+  if (usuario) cy.get('#email').clear().type(usuario, { log: false });
+  if (clave) cy.get('#password').clear().type(clave, { log: false });
+  cy.get('form button[type="submit"]').click();
 });
