@@ -1,0 +1,10 @@
+{
+  "datosValidos": {
+    "campo1": "valor",
+    "campo2": "valor"
+  },
+  "datosInvalidos": {
+    "campo1": "",
+    "campo2": "###"
+  }
+}

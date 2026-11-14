@@ -3,7 +3,6 @@
 // Credenciales en cypress.env.json (excluido de Git):
 //   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS
 
-// Selectores genéricos (confirmar con el HTML real de cada pantalla de login)
 const SEL = {
   usuario: 'input[type="email"]',
   clave: 'input[type="password"]',
@@ -28,10 +27,12 @@ const ROLES = {
   },
 };
 
+// Login reutilizable por rol
 Cypress.Commands.add('login', (rol) => {
   const r = ROLES[rol];
+
   if (!r) {
-    throw new Error(`Rol desconocido: "${rol}". Use 'COORD' o 'VICE'.`);
+    throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
   }
 
   const usuario = Cypress.env(r.user);
@@ -47,29 +48,38 @@ Cypress.Commands.add('login', (rol) => {
     ['login', rol],
     () => {
       cy.visit(r.rutaLogin);
+
       cy.get(SEL.usuario).clear().type(usuario, { log: false });
       cy.get(SEL.clave).clear().type(clave, { log: false });
+
       cy.get(SEL.ingresar).click();
-      cy.location('pathname', { timeout: 15000 }).should(
-        'not.include',
-        r.rutaLoginFragmento
-      );
+
+      cy.location('pathname', { timeout: 15000 })
+        .should('not.include', r.rutaLoginFragmento);
     },
     {
       validate() {
         cy.visit(r.rutaDestino);
-        cy.location('pathname').should('not.include', r.rutaLoginFragmento);
+        cy.location('pathname')
+          .should('not.include', r.rutaLoginFragmento);
       },
       cacheAcrossSpecs: true,
     }
   );
 });
 
-// loginManual: se deja igual que el original (usa /login de Nova)
+// Login manual para pruebas negativas (usa el login general de Nova)
 const RUTA_LOGIN = '/login';
 Cypress.Commands.add('loginManual', (usuario, clave) => {
   cy.visit(RUTA_LOGIN);
-  if (usuario) cy.get('#email').clear().type(usuario, { log: false });
-  if (clave) cy.get('#password').clear().type(clave, { log: false });
+
+  if (usuario) {
+    cy.get('#email').clear().type(usuario, { log: false });
+  }
+
+  if (clave) {
+    cy.get('#password').clear().type(clave, { log: false });
+  }
+
   cy.get('form button[type="submit"]').click();
 });
