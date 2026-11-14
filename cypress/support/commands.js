@@ -26,37 +26,39 @@ Cypress.Commands.add('login', (rol) => {
     throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
   }
 
-  const usuario = Cypress.env(r.user);
-  const clave = Cypress.env(r.pass);
+  cy.env([r.user, r.pass]).then((env) => {
+    const usuario = env[r.user];
+    const clave = env[r.pass];
 
-  if (!usuario || !clave) {
-    throw new Error(
-      `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
-    );
-  }
+    if (!usuario || !clave) {
+      throw new Error(
+        `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
+      );
+    }
 
-  cy.session(
-    ['login', rol],
-    () => {
-      cy.visit(RUTA_LOGIN);
+    cy.session(
+      ['login', rol],
+      () => {
+        cy.visit(RUTA_LOGIN);
 
-      cy.get(SEL.usuario).clear().type(usuario, { log: false });
-      cy.get(SEL.clave).clear().type(clave, { log: false });
+        cy.get(SEL.usuario).clear().type(usuario, { log: false });
+        cy.get(SEL.clave).clear().type(clave, { log: false });
 
-      cy.get(SEL.ingresar).click();
+        cy.get(SEL.ingresar).click();
 
-      cy.location('pathname', { timeout: 15000 })
-        .should('not.include', '/login');
-    },
-    {
-      validate() {
-        cy.visit('/');
-        cy.location('pathname')
+        cy.location('pathname', { timeout: 15000 })
           .should('not.include', '/login');
       },
-      cacheAcrossSpecs: true,
-    }
-  );
+      {
+        validate() {
+          cy.visit('/');
+          cy.location('pathname')
+            .should('not.include', '/login');
+        },
+        cacheAcrossSpecs: true,
+      }
+    );
+  });
 });
 
 // Login manual para pruebas negativas
