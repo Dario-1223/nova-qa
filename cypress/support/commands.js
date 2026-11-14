@@ -54,7 +54,9 @@ Cypress.Commands.add('login', (rol) => {
         cy.get(SEL.usuario).clear().type(usuario, { log: false });
         cy.get(SEL.clave).clear().type(clave, { log: false });
 
-        cy.get(SEL.ingresar).click();
+        // Se pulsa por texto exacto para no confundirlo con
+        // el botón "Iniciar sesión con Google"
+        cy.contains('button', 'Iniciar Sesión').click();
 
         cy.location('pathname', { timeout: 15000 })
           .should('not.include', r.rutaLoginFragmento);
