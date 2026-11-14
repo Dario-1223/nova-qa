@@ -1,20 +1,29 @@
+// cypress/support/commands.js
+// Uso en las pruebas:  cy.login('COORD')  o  cy.login('VICE')
+// Credenciales en cypress.env.json (excluido de Git):
+//   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS
 
 const SEL = {
-  usuario: '#email',
-  clave: '#password',
-  ingresar: 'form button[type="submit"]',
+  usuario: 'input[type="email"]',
+  clave: 'input[type="password"]',
+  ingresar: 'button[type="submit"]',
 };
 
-const RUTA_LOGIN = '/login';
-
+// Cada rol tiene su propia pantalla de login y su ruta de destino
 const ROLES = {
   COORD: {
     user: 'COORD_USER',
     pass: 'COORD_PASS',
+    rutaLogin: '/convocatorias-app/inicio-sesion',
+    rutaDestino: '/convocatorias-app/coordinador',
+    rutaLoginFragmento: 'inicio-sesion',
   },
   VICE: {
     user: 'VICE_USER',
     pass: 'VICE_PASS',
+    rutaLogin: '/login', // confirmar con quien tenga el rol Vicerrectoría
+    rutaDestino: '/',
+    rutaLoginFragmento: '/login',
   },
 };
 
@@ -38,7 +47,7 @@ Cypress.Commands.add('login', (rol) => {
   cy.session(
     ['login', rol],
     () => {
-      cy.visit(RUTA_LOGIN);
+      cy.visit(r.rutaLogin);
 
       cy.get(SEL.usuario).clear().type(usuario, { log: false });
       cy.get(SEL.clave).clear().type(clave, { log: false });
@@ -46,30 +55,31 @@ Cypress.Commands.add('login', (rol) => {
       cy.get(SEL.ingresar).click();
 
       cy.location('pathname', { timeout: 15000 })
-        .should('not.include', '/login');
+        .should('not.include', r.rutaLoginFragmento);
     },
     {
       validate() {
-        cy.visit('/');
+        cy.visit(r.rutaDestino);
         cy.location('pathname')
-          .should('not.include', '/login');
+          .should('not.include', r.rutaLoginFragmento);
       },
       cacheAcrossSpecs: true,
     }
   );
 });
 
-// Login manual para pruebas negativas
+// Login manual para pruebas negativas (usa el login general de Nova)
+const RUTA_LOGIN = '/login';
 Cypress.Commands.add('loginManual', (usuario, clave) => {
   cy.visit(RUTA_LOGIN);
 
   if (usuario) {
-    cy.get(SEL.usuario).clear().type(usuario, { log: false });
+    cy.get('#email').clear().type(usuario, { log: false });
   }
 
   if (clave) {
-    cy.get(SEL.clave).clear().type(clave, { log: false });
+    cy.get('#password').clear().type(clave, { log: false });
   }
 
-  cy.get(SEL.ingresar).click();
+  cy.get('form button[type="submit"]').click();
 });
