@@ -1,10 +1,8 @@
 {
   "datosValidos": {
-    "campo1": "valor",
-    "campo2": "valor"
+    "estado": "Aceptada"
   },
   "datosInvalidos": {
-    "campo1": "",
-    "campo2": "###"
+    "busqueda": "zzzxxx-no-existe-999"
   }
 }
