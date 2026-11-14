@@ -42,6 +42,29 @@ it('CP-02 - Login con credenciales inválidas no permite el acceso', () => {
     expect(sesion, 'cookies de sesión').to.have.length(0);
   });
 });
+it('CP-03 - Login con campos vacíos no permite el acceso', () => {
+  cy.visit('/login');
+
+  // Los campos se dejan vacíos a propósito
+  cy.get('#email').clear();
+  cy.get('#password').clear();
+  cy.get('form button[type="submit"]').click();
+
+  // 1. No debe salir de la pantalla de login
+  cy.location('pathname').should('include', '/login');
+
+  // 2. El formulario debe seguir visible
+  cy.get('#email').should('be.visible');
+  cy.get('#password').should('be.visible');
+
+  // 3. No debe haberse guardado ninguna sesión
+  cy.getCookies().then((cookies) => {
+    const sesion = cookies.filter((c) => /token|session|auth/i.test(c.name));
+    expect(sesion, 'cookies de sesión').to.have.length(0);
+  });
+
+  cy.screenshot('CP-03-campos-vacios');
+});
 });
 
 
