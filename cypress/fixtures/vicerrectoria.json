@@ -3,6 +3,7 @@
     "convocatoria": "Docente de Algebra moderna"
   },
   "datosInvalidos": {
-    "busqueda": "zzzzxx"
+    "busqueda": "zzzzxx",
+    "caracteresEspeciales": "@#$%&*"
   }
 }

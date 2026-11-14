@@ -1,10 +1,12 @@
 {
   "name": "nova-qa",
   "version": "1.0.0",
-  "description": "",
+  "description": "Pruebas QA de UniDoc (Coordinación y Vicerrectoría)",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cypress run",
+    "cy:open": "cypress open",
+    "token": "node scripts/token.js"
   },
   "keywords": [],
   "author": "",
