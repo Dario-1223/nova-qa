@@ -1,84 +1,144 @@
 // cypress/support/commands.js
-// Comando personalizado para iniciar sesión según el rol.
-// Uso en las pruebas:  cy.login('COORD')  o  cy.login('VICE')
-//
-// Las credenciales se leen de cypress.env.json (excluido de Git):
-//   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS
+// Uso en las pruebas:
+//   cy.login('COORD')        -> Coordinación (correo y contraseña)
+//   cy.login('VICE')         -> Vicerrectoría con correo y contraseña (si el docente da una cuenta)
+//   cy.loginViceToken()      -> Vicerrectoría con sesión de Google reutilizada (token)
+// Credenciales en cypress.env.json (excluido de Git):
+//   COORD_USER, COORD_PASS, VICE_USER, VICE_PASS, VICE_TOKEN
 
-// ---------------------------------------------------------------
-// SELECTORES DE LA PANTALLA DE LOGIN (tomados de /login de NOVA)
-//   <input type="email" id="email" name="email">
-//   <input type="password" id="password" name="password">
-//   <button type="submit">Iniciar Sesión</button>
-// ---------------------------------------------------------------
 const SEL = {
-  usuario: '#email',
-  clave: '#password',
-  ingresar: 'form button[type="submit"]',
+  usuario: 'input[type="email"]',
+  clave: 'input[type="password"]',
+  ingresar: 'button[type="submit"]',
 };
 
-// Ruta de la página de login (relativa a baseUrl)
-const RUTA_LOGIN = '/login';
-
+// Cada rol tiene su propia pantalla de login y su ruta de destino
 const ROLES = {
-  COORD: { user: 'COORD_USER', pass: 'COORD_PASS' },
-  VICE: { user: 'VICE_USER', pass: 'VICE_PASS' },
+  COORD: {
+    user: 'COORD_USER',
+    pass: 'COORD_PASS',
+    rutaLogin: '/convocatorias-app/inicio-sesion',
+    rutaDestino: '/convocatorias-app/coordinador',
+    rutaLoginFragmento: 'inicio-sesion',
+  },
+  VICE: {
+    user: 'VICE_USER',
+    pass: 'VICE_PASS',
+    rutaLogin: '/convocatorias-app/inicio-sesion',
+    rutaDestino: '/convocatorias-app/vicerrectoria/avales',
+    rutaLoginFragmento: 'inicio-sesion',
+  },
 };
 
-/**
- * Inicia sesión con el rol indicado y guarda la sesión con cy.session,
- * para no repetir el login en cada prueba (más rápido y menos peticiones al servidor).
- * @param {'COORD'|'VICE'} rol
- */
+// Login reutilizable por rol
 Cypress.Commands.add('login', (rol) => {
   const r = ROLES[rol];
+
   if (!r) {
-    throw new Error(`Rol desconocido: "${rol}". Use 'COORD' o 'VICE'.`);
+    throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
   }
 
-  const usuario = Cypress.env(r.user);
-  const clave = Cypress.env(r.pass);
+  // Cypress 16: las credenciales se leen con cy.env(), no con Cypress.env()
+  cy.env([r.user, r.pass]).then((env) => {
+    const usuario = env[r.user];
+    const clave = env[r.pass];
 
-  if (!usuario || !clave) {
-    throw new Error(
-      `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
-    );
-  }
-
-  cy.session(
-    ['login', rol],
-    () => {
-      cy.visit(RUTA_LOGIN);
-      cy.get(SEL.usuario).clear().type(usuario, { log: false });
-      cy.get(SEL.clave).clear().type(clave, { log: false });
-      cy.get(SEL.ingresar).click();
-      // Login exitoso = la app sale de /login.
-      // Cuando tengan credenciales, pueden agregar además un elemento
-      // que solo se vea ya dentro (menú, nombre del usuario, etc.).
-      cy.location('pathname', { timeout: 15000 }).should('not.include', '/login');
-    },
-    {
-      // Si la sesión guardada expiró, se vuelve a iniciar sesión.
-      validate() {
-        cy.visit('/');
-        cy.location('pathname').should('not.include', '/login');
-      },
-      cacheAcrossSpecs: true,
+    if (!usuario || !clave) {
+      throw new Error(
+        `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
+      );
     }
-  );
+
+    cy.session(
+      ['login', rol],
+      () => {
+        cy.visit(r.rutaLogin);
+
+        cy.get(SEL.usuario).clear().type(usuario, { log: false });
+        cy.get(SEL.clave).clear().type(clave, { log: false });
+
+        // Se pulsa por texto exacto para no confundirlo con
+        // el botón "Iniciar sesión con Google"
+        cy.contains('button', 'Iniciar Sesión').click();
+
+        cy.location('pathname', { timeout: 15000 })
+          .should('not.include', r.rutaLoginFragmento);
+      },
+      {
+        validate() {
+          cy.visit(r.rutaDestino);
+          cy.location('pathname')
+            .should('not.include', r.rutaLoginFragmento);
+        },
+        cacheAcrossSpecs: true,
+      }
+    );
+  });
 });
 
-/**
- * Intenta iniciar sesión con datos arbitrarios SIN guardar sesión.
- * Pensado para los casos negativos (CP-02, CP-03).
- * Pasar '' para dejar un campo vacío.
- */
-// Nota: el campo de correo es type="email", así que el navegador
-// valida el formato y puede bloquear el envío sin llamar al servidor.
-// En ese caso la prueba debe verificar que se sigue en /login.
+// ---------------------------------------------------------------------------
+// Vicerrectoría: reutiliza la sesión de Google guardada en la cookie "token".
+// Requiere "VICE_TOKEN" en cypress.env.json (se actualiza con: node scripts/token.js).
+// El token dura 50 minutos. Si está vencido, este comando falla con un mensaje claro
+// en vez de dejar que las pruebas fallen por 401.
+// ---------------------------------------------------------------------------
+function minutosRestantes(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const datos = JSON.parse(atob(payload));
+    return Math.floor((datos.exp * 1000 - Date.now()) / 60000);
+  } catch (e) {
+    return null;
+  }
+}
+
+Cypress.Commands.add('loginViceToken', () => {
+  cy.env(['VICE_TOKEN']).then(({ VICE_TOKEN }) => {
+    if (!VICE_TOKEN) {
+      throw new Error('Falta VICE_TOKEN en cypress.env.json. Ejecute: node scripts/token.js');
+    }
+
+    const min = minutosRestantes(VICE_TOKEN);
+    if (min === null) {
+      throw new Error('VICE_TOKEN no tiene formato de token valido. Ejecute: node scripts/token.js');
+    }
+    if (min <= 0) {
+      throw new Error(
+        `TOKEN VENCIDO hace ${Math.abs(min)} min. Inicie sesion con Google, copie la cookie token y ejecute: node scripts/token.js`
+      );
+    }
+
+    cy.log(`Token vigente: quedan ${min} min`);
+
+    // El final del token va en el id de la sesion: si cambia el token, no se reutiliza la cache vieja
+    cy.session(
+      ['login-token', 'VICE', VICE_TOKEN.slice(-12)],
+      () => {
+        cy.visit('/convocatorias-app/inicio-sesion');
+        cy.setCookie('token', VICE_TOKEN, { path: '/' });
+      },
+      {
+        validate() {
+          cy.visit('/convocatorias-app/vicerrectoria/avales');
+          cy.location('pathname').should('not.include', 'inicio-sesion');
+        },
+      }
+    );
+  });
+});
+
+// Login manual para pruebas negativas (usa el login general de Nova)
+const RUTA_LOGIN = '/login';
 Cypress.Commands.add('loginManual', (usuario, clave) => {
   cy.visit(RUTA_LOGIN);
-  if (usuario) cy.get(SEL.usuario).clear().type(usuario, { log: false });
-  if (clave) cy.get(SEL.clave).clear().type(clave, { log: false });
-  cy.get(SEL.ingresar).click();
+
+  if (usuario) {
+    cy.get('#email').clear().type(usuario, { log: false });
+  }
+
+  if (clave) {
+    cy.get('#password').clear().type(clave, { log: false });
+  }
+
+  cy.get('form button[type="submit"]').click();
 });
