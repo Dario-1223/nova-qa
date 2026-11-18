@@ -1,77 +1,58 @@
+import { RUTA_LOGIN, RUTA_PANEL } from './rutas';
 
 const SEL = {
   usuario: '#email',
   clave: '#password',
-  ingresar: 'form button[type="submit"]',
+  enviar: 'form button[type="submit"]',
 };
 
-const RUTA_LOGIN = '/login';
+// Un valor de relleno no cuenta como credencial real
+const esRelleno = (v) =>
+  !v ||
+  v === '...' ||
+  v === 'pendiente' ||
+  String(v).startsWith('PEGA_AQUI') ||
+  String(v).startsWith('PON_AQUI');
 
-const ROLES = {
-  COORD: {
-    user: 'COORD_USER',
-    pass: 'COORD_PASS',
-  },
-  VICE: {
-    user: 'VICE_USER',
-    pass: 'VICE_PASS',
-  },
-};
-
-// Login reutilizable por rol
 Cypress.Commands.add('login', (rol) => {
-  const r = ROLES[rol];
+  cy.env([`${rol}_TOKEN`, `${rol}_USER`, `${rol}_PASS`]).then((env) => {
+    const token = env[`${rol}_TOKEN`];
+    const usuario = env[`${rol}_USER`];
+    const clave = env[`${rol}_PASS`];
 
-  if (!r) {
-    throw new Error(`Rol desconocido: "${rol}". Use COORD o VICE.`);
-  }
+    // Acceso por cookie "token" (sesión iniciada antes con Google)
+    if (!esRelleno(token)) {
+      cy.session(
+        ['token', rol],
+        () => {
+          cy.visit(RUTA_LOGIN); // para quedar en el dominio de Nova
+          cy.setCookie('token', token, { path: '/' });
+          cy.visit(RUTA_PANEL);
+          cy.contains('button', 'Cerrar sesión', { timeout: 15000 }).should('be.visible');
+        },
+        {
+          validate() {
+            cy.visit(RUTA_PANEL);
+            cy.contains('button', 'Cerrar sesión', { timeout: 15000 }).should('be.visible');
+          },
+        }
+      );
+      return;
+    }
 
-  cy.env([r.user, r.pass]).then((env) => {
-    const usuario = env[r.user];
-    const clave = env[r.pass];
-
-    if (!usuario || !clave) {
+    // Acceso por formulario (correo y contraseña)
+    if (esRelleno(usuario) || esRelleno(clave)) {
       throw new Error(
-        `Faltan las credenciales ${r.user} / ${r.pass} en cypress.env.json`
+        `No hay credenciales reales para ${rol}: faltan ${rol}_TOKEN o ${rol}_USER y ${rol}_PASS en cypress.env.json`
       );
     }
 
-    cy.session(
-      ['login', rol],
-      () => {
-        cy.visit(RUTA_LOGIN);
-
-        cy.get(SEL.usuario).clear().type(usuario, { log: false });
-        cy.get(SEL.clave).clear().type(clave, { log: false });
-
-        cy.get(SEL.ingresar).click();
-
-        cy.location('pathname', { timeout: 15000 })
-          .should('not.include', '/login');
-      },
-      {
-        validate() {
-          cy.visit('/');
-          cy.location('pathname')
-            .should('not.include', '/login');
-        },
-        cacheAcrossSpecs: true,
-      }
-    );
+    cy.session(['login', rol], () => {
+      cy.visit(RUTA_LOGIN);
+      cy.get(SEL.usuario).clear().type(usuario, { log: false });
+      cy.get(SEL.clave).clear().type(clave, { log: false });
+      cy.get(SEL.enviar).click();
+      cy.contains('button', 'Cerrar sesión', { timeout: 15000 }).should('be.visible');
+    });
   });
-});
-
-// Login manual para pruebas negativas
-Cypress.Commands.add('loginManual', (usuario, clave) => {
-  cy.visit(RUTA_LOGIN);
-
-  if (usuario) {
-    cy.get(SEL.usuario).clear().type(usuario, { log: false });
-  }
-
-  if (clave) {
-    cy.get(SEL.clave).clear().type(clave, { log: false });
-  }
-
-  cy.get(SEL.ingresar).click();
 });
